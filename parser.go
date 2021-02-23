@@ -36,12 +36,6 @@ func (parser *parser) Parse() (result interface{}, err error) {
 			result = w.getValue()
 		}
 	}
-	if parser.Len() > 0 {
-		if w, err = parser.ReadWord(); err == nil {
-			result = nil
-			err = unexpectedWordError(w.text)
-		}
-	}
 	return
 }
 
@@ -111,16 +105,14 @@ func (parser *parser) ReadArray() (interface{}, error) {
 			return nil, err
 		}
 		if w.token {
-			//if no commas here, the token must be ]
+			if !hasComma && w.text != "]" {
+				return nil, unexpectedWordError(w.text)
+			}
 			if w.text == "]" {
 				return result, nil
-			} else if w.text == "{" && hasComma {
-				element, err = parser.ReadObj()
-			} else if w.text == "[" && hasComma {
-				element, err = parser.ReadArray()
-			} else {
-				err = unexpectedWordError(w.text)
 			}
+			parser.UnreadRune()
+			element, err = parser.Parse()
 			if err != nil {
 				return nil, err
 			}

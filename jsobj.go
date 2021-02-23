@@ -18,9 +18,13 @@ func init() {
 }
 
 //Parse Parse JavaScript object string to an object (map/array)
-func Parse(str string) (interface{}, error) {
-	var obj = (*parser)(strings.NewReader(str))
-	return obj.Parse()
+func Parse(str string) (obj interface{}, err error) {
+	var parser = (*parser)(strings.NewReader(str))
+	if obj, err = parser.Parse(); err == nil && parser.Len() > 0 {
+		w, _ := parser.ReadWord()
+		obj, err = nil, unexpectedWordError(w.text)
+	}
+	return
 }
 
 //Unmarshal Use the system JSON serialization tool to complete the reverse sequence.

@@ -12,6 +12,9 @@ func (w *word) getValue() interface{} {
 	if w.must {
 		return w.text
 	}
+	if w.text == "null" {
+		return nil
+	}
 	if obj, err := strconv.ParseInt(w.text, 10, 64); err == nil {
 		return obj
 	}
