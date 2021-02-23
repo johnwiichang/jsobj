@@ -2,7 +2,7 @@
 
 JSObj is a Golang library suitable for parsing the JavaScript object for `map` or `array` / `slice` object.
 
-jsobj 是一个适用于解析 javascript 对象为 map 或 array/slice 对象的 golang 库。
+JSObj 是一个适用于解析 JavaScript 对象为 `map` 或 `array` / `slice` 对象的 Golang 库。
 
 ---
 
