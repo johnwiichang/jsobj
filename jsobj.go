@@ -19,9 +19,7 @@ func init() {
 
 //Parse Parse JavaScript object string to an object (map/array)
 func Parse(str string) (interface{}, error) {
-	var obj = &parser{
-		reader: strings.NewReader(str),
-	}
+	var obj = (*parser)(strings.NewReader(str))
 	return obj.Parse()
 }
 
