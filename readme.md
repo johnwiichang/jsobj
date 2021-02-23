@@ -6,6 +6,8 @@ JSObj 是一个适用于解析 JavaScript 对象为 `map` 或 `array` / `slice` 
 
 ---
 
+[![Build Status](https://travis-ci.org/johnwiichang/jsobj.svg?branch=master)](https://travis-ci.org/johnwiichang/jsobj) [![Go Report Card](https://goreportcard.com/badge/github.com/johnwiichang/jsobj)](https://goreportcard.com/report/github.com/johnwiichang/jsobj) [![Open Source Helpers](https://www.codetriage.com/johnwiichang/jsobj/badges/users.svg)](https://www.codetriage.com/johnwiichang/jsobj) 
+
 ## 开始使用 <small>QuickStart</small>
 
 ```bash

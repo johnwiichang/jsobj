@@ -69,7 +69,7 @@ func (parser *parser) ReadObj() (interface{}, error) {
 			return nil, err
 		}
 		//key : value
-		if !w.token || w.text != ":" {
+		if w.text != ":" {
 			return nil, unexpectedWordError(w.text)
 		}
 		w, err = parser.ReadWord()
