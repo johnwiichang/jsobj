@@ -31,11 +31,9 @@ func (parser *parser) Parse() (result interface{}, err error) {
 				//other characters
 				err = unexpectedWordError(w.text)
 			}
-		} else if _, test := parser.ReadWord(); test != nil {
+		} else {
 			//text word can't have a follow-up word.
 			result = w.getValue()
-		} else {
-			err = unexpectedWordError(w.text)
 		}
 	}
 	if parser.Len() > 0 {
@@ -78,15 +76,8 @@ func (parser *parser) ReadObj() (interface{}, error) {
 		}
 		//an object, an array or just a text
 		if w.token {
-			if w.text == "{" {
-				//an object
-				result[key], err = parser.ReadObj()
-			} else if w.text == "[" {
-				//an array
-				result[key], err = parser.ReadArray()
-			} else {
-				err = unexpectedWordError(w.text)
-			}
+			parser.UnreadRune()
+			result[key], err = parser.Parse()
 			if err != nil {
 				return nil, err
 			}
