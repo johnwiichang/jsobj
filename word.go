@@ -5,6 +5,7 @@ import (
 	"strconv"
 )
 
+//Word represents a JavaScript token or a JavaScript value.
 type Word interface {
 	Token() bool
 	String() string
