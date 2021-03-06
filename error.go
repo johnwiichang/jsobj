@@ -1,20 +1,25 @@
 package jsobj
 
+import "strconv"
+
 type (
 	//UnexpectedWordError An unexpected character appearing in a string
-	UnexpectedWordError string
+	UnexpectedWordError struct {
+		text     string
+		location int
+	}
 
 	//IOEOFError The cursor read from the data has arrived at the end of the stream.
 	IOEOFError string
 )
 
-func unexpectedWordError(w string) error {
-	var err = UnexpectedWordError(w)
-	return &err
+func unexpectedWordError(w string, position int) error {
+	var err = &UnexpectedWordError{w, position - len([]rune(w))}
+	return err
 }
 
 func (err *UnexpectedWordError) Error() string {
-	return "js: unexpected character '" + string(*err) + "'"
+	return "js: unexpected character '" + err.text + "' at " + strconv.Itoa(err.location)
 }
 
 func (err *IOEOFError) Error() string {

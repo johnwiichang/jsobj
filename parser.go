@@ -4,42 +4,69 @@ import (
 	"strings"
 )
 
-type parser strings.Reader
-
-func (parser *parser) Len() int {
-	return (*strings.Reader)(parser).Len()
+type parser struct {
+	*strings.Reader
+	location int
 }
 
-func (parser *parser) UnreadRune() error {
-	return (*strings.Reader)(parser).UnreadRune()
+func (parser *parser) EOF() bool {
+	return parser.Len() == 0
 }
 
-func (parser *parser) Parse() (result interface{}, err error) {
-	var w *word
+func (parser *parser) Location() int {
+	return parser.location
+}
+
+func (parser *parser) ReadObject() (result interface{}, err error) {
+	var w Word
 	w, err = parser.ReadWord()
 	if err == nil {
 		//expected { / [ or a pure text
-		if w.token {
-			switch w.text {
+		if w.Token() {
+			switch w.String() {
 			case "{":
-				result, err = parser.ReadObj()
+				result, err = parser.readObj()
 				break
 			case "[":
-				result, err = parser.ReadArray()
+				result, err = parser.readArray()
 				break
 			default:
 				//other characters
-				err = unexpectedWordError(w.text)
+				err = unexpectedWordError(w.String(), parser.location)
 			}
 		} else {
 			//text word can't have a follow-up word.
-			result = w.getValue()
+			result = w.Typed()
 		}
 	}
 	return
 }
 
-func (parser *parser) ReadObj() (interface{}, error) {
+func (parser *parser) ReadObjects() ([]interface{}, error) {
+	obj, err := parser.ReadObject()
+	if err != nil {
+		return nil, err
+	}
+	var results = []interface{}{obj}
+	for {
+		if w, err := parser.ReadWord(); err != nil {
+			if _, iseof := (err).(*IOEOFError); iseof {
+				return results, nil
+			}
+			return nil, err
+		} else if w.String() != "," {
+			parser.UnreadRune()
+			return results, nil
+		}
+		obj, err := parser.ReadObject()
+		if err != nil {
+			return results, nil
+		}
+		results = append(results, obj)
+	}
+}
+
+func (parser *parser) readObj() (interface{}, error) {
 	// readed first '{'
 	//expect token '}', string
 	var result, hasComma = map[string]interface{}{}, true
@@ -48,53 +75,53 @@ func (parser *parser) ReadObj() (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		if w.token || !hasComma {
-			if w.text == "}" {
+		if w.Token() || !hasComma {
+			if w.String() == "}" {
 				return result, nil
 			}
 			//if there is no comma, the object must be finished
-			return nil, unexpectedWordError(w.text)
+			return nil, unexpectedWordError(w.String(), parser.location)
 		}
-		var key = w.text
+		var key = w.String()
 		w, err = parser.ReadWord()
 		if err != nil {
 			return nil, err
 		}
 		//key : value
-		if w.text != ":" {
-			return nil, unexpectedWordError(w.text)
+		if w.String() != ":" {
+			return nil, unexpectedWordError(w.String(), parser.location)
 		}
 		w, err = parser.ReadWord()
 		if err != nil {
 			return nil, err
 		}
 		//an object, an array or just a text
-		if w.token {
+		if w.Token() {
 			parser.UnreadRune()
-			result[key], err = parser.Parse()
+			result[key], err = parser.ReadObject()
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			//text
-			result[key] = w.getValue()
+			result[key] = w.Typed()
 		}
 		//must be a token in comma or bracket
 		w, err = parser.ReadWord()
 		if err != nil {
 			return nil, err
 		}
-		if !w.token {
-			return nil, unexpectedWordError(w.text)
+		if !w.Token() {
+			return nil, unexpectedWordError(w.String(), parser.location)
 		}
-		if hasComma = w.text == ","; !hasComma {
+		if hasComma = w.String() == ","; !hasComma {
 			//meet a none-comma token, unread
 			parser.UnreadRune()
 		}
 	}
 }
 
-func (parser *parser) ReadArray() (interface{}, error) {
+func (parser *parser) readArray() (interface{}, error) {
 	// readed first '['
 	//expect token ']', string, '{', '['
 	var result, hasComma = []interface{}{}, true
@@ -104,21 +131,21 @@ func (parser *parser) ReadArray() (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		if w.token {
-			if !hasComma && w.text != "]" {
-				return nil, unexpectedWordError(w.text)
+		if w.Token() {
+			if !hasComma && w.String() != "]" {
+				return nil, unexpectedWordError(w.String(), parser.location)
 			}
-			if w.text == "]" {
+			if w.String() == "]" {
 				return result, nil
 			}
 			parser.UnreadRune()
-			element, err = parser.Parse()
+			element, err = parser.ReadObject()
 			if err != nil {
 				return nil, err
 			}
 			result = append(result, element)
 		} else {
-			element = w.getValue()
+			element = w.Typed()
 			result = append(result, element)
 		}
 		//must be a token in comma or bracket
@@ -126,17 +153,17 @@ func (parser *parser) ReadArray() (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !w.token {
-			return nil, unexpectedWordError(w.text)
+		if !w.Token() {
+			return nil, unexpectedWordError(w.String(), parser.location)
 		}
-		if hasComma = w.text == ","; !hasComma {
+		if hasComma = w.String() == ","; !hasComma {
 			//meet a none-comma token, unread
 			parser.UnreadRune()
 		}
 	}
 }
 
-func (parser *parser) ReadWord() (w *word, err error) {
+func (parser *parser) ReadWord() (w Word, err error) {
 	var char, quote, last rune
 	char, err = parser.NextRune(true)
 	if err != nil {
@@ -153,12 +180,10 @@ func (parser *parser) ReadWord() (w *word, err error) {
 		builder.WriteRune(char)
 	}
 	for char, err = parser.NextRune(); err == nil; char, err = parser.NextRune() {
-		if last == '\\' && quote != 0 {
-			builder.WriteRune(char)
-			last = char
-			continue
+		if last == '\\' && char != quote {
+			builder.WriteRune(last)
 		}
-		if char == quote {
+		if char == quote && last != '\\' {
 			break
 		}
 		if quote == 0 {
@@ -177,10 +202,31 @@ func (parser *parser) ReadWord() (w *word, err error) {
 	return &word{token: false, text: builder.String(), must: quote != 0}, nil
 }
 
+func (parser *parser) Read(token ...rune) (string, error) {
+	builder := strings.Builder{}
+	var tokens = map[rune]bool{}
+	for _, t := range token {
+		tokens[t] = true
+	}
+	for {
+		char, err := parser.NextRune(true)
+		if err != nil {
+			if _, iseof := err.(*IOEOFError); !iseof {
+				return "", err
+			}
+		}
+		if tokens[char] || err != nil {
+			return builder.String(), nil
+		}
+		builder.WriteRune(char)
+	}
+}
+
 func (parser *parser) NextRune(ignoreBlank ...bool) (char rune, err error) {
 	err = new(IOEOFError)
 	for parser.Len() > 0 {
-		if char, _, err = (*strings.Reader)(parser).ReadRune(); len(ignoreBlank) == 0 || !ignoreBlank[0] || !blanks[char] {
+		parser.location++
+		if char, _, err = parser.ReadRune(); len(ignoreBlank) == 0 || !ignoreBlank[0] || !blanks[char] {
 			break
 		}
 	}
