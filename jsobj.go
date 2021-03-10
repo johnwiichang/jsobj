@@ -15,6 +15,7 @@ type Parser interface {
 	ReadObject() (interface{}, error)
 	ReadWord() (Word, error)
 	Read(...rune) (string, error)
+	UnreadRune() error
 	Location() int
 	EOF() bool
 }
