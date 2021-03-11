@@ -152,7 +152,6 @@ func (parser *parser) readArray() (interface{}, error) {
 	//expect token ']', string, '{', '['
 	var result, hasComma = []interface{}{}, true
 	for {
-		var element interface{}
 		w, err := parser.ReadWord()
 		if err != nil {
 			return nil, err
@@ -165,14 +164,14 @@ func (parser *parser) readArray() (interface{}, error) {
 				return result, nil
 			}
 			parser.UnreadRune()
-			element, err = parser.ReadObject()
+			var obj Object
+			obj, err = parser.ReadObject()
 			if err != nil {
 				return nil, err
 			}
-			result = append(result, element)
+			result = append(result, obj.Interface())
 		} else {
-			element = w.Typed()
-			result = append(result, element)
+			result = append(result, w.Typed())
 		}
 		//must be a token in comma or bracket
 		w, err = parser.ReadWord()
