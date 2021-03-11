@@ -18,6 +18,14 @@ func unexpectedWordError(w string, position int) error {
 	return err
 }
 
+func isUnexpectedWordError(err error, w ...string) bool {
+	if err == nil {
+		return false
+	}
+	uwe, isuwe := err.(*UnexpectedWordError)
+	return isuwe && (len(w) == 0 || (uwe.text == w[0]))
+}
+
 func (err *UnexpectedWordError) Error() string {
 	return "js: unexpected character '" + err.text + "' at " + strconv.Itoa(err.location)
 }

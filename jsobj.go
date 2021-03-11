@@ -12,7 +12,7 @@ var blanks = map[rune]bool{}
 //Parser defines a method of reading JavaScript text based on Rune-based on-demand.
 type Parser interface {
 	ReadObjects() ([]interface{}, error)
-	ReadObject() (interface{}, error)
+	ReadObject() (Object, error)
 	ReadWord() (Word, error)
 	Read(...rune) (string, error)
 	UnreadRune() error
@@ -21,7 +21,7 @@ type Parser interface {
 }
 
 func init() {
-	for _, char := range "[{}],.:" {
+	for _, char := range "[{()}],.:" {
 		tokens[char] = true
 	}
 	for _, char := range " \t\r\n\b\f" {
@@ -31,7 +31,7 @@ func init() {
 
 //Parse Create a new parser to start reading the JavaScript string.
 func Parse(str string) Parser {
-	var parser = &parser{Reader: strings.NewReader(str)}
+	var parser = &parser{Reader: strings.NewReader(str), tokenExt: map[rune]bool{}}
 	return parser
 }
 

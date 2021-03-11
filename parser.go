@@ -4,9 +4,24 @@ import (
 	"strings"
 )
 
+//Object JavaScript Object
+type Object interface {
+	Interface() interface{}
+}
+
+type object struct {
+	value interface{}
+}
+
+//Interface Get inner interface data from object instance
+func (obj *object) Interface() interface{} {
+	return obj.value
+}
+
 type parser struct {
 	*strings.Reader
 	location int
+	tokenExt map[rune]bool
 }
 
 func (parser *parser) EOF() bool {
@@ -17,18 +32,21 @@ func (parser *parser) Location() int {
 	return parser.location
 }
 
-func (parser *parser) ReadObject() (result interface{}, err error) {
+func (parser *parser) ReadObject() (obj Object, err error) {
 	var w Word
 	w, err = parser.ReadWord()
 	if err == nil {
 		//expected { / [ or a pure text
 		if w.Token() {
+			var result interface{}
 			switch w.String() {
 			case "{":
 				result, err = parser.readObj()
+				obj = &object{result}
 				break
 			case "[":
 				result, err = parser.readArray()
+				obj = &object{result}
 				break
 			default:
 				//other characters
@@ -36,33 +54,39 @@ func (parser *parser) ReadObject() (result interface{}, err error) {
 			}
 		} else {
 			//text word can't have a follow-up word.
-			result = w.Typed()
+			obj = &object{w.Typed()}
 		}
 	}
 	return
 }
 
 func (parser *parser) ReadObjects() ([]interface{}, error) {
-	obj, err := parser.ReadObject()
+	defer func() {
+		parser.tokenExt = map[rune]bool{}
+	}()
+	w, err := parser.ReadWord()
 	if err != nil {
 		return nil, err
 	}
-	var results = []interface{}{obj}
+	if w.String() != "(" {
+		return nil, unexpectedWordError(w.String(), parser.Location())
+	}
+	var results = []interface{}{}
 	for {
-		if w, err := parser.ReadWord(); err != nil {
-			if _, iseof := (err).(*IOEOFError); iseof {
-				return results, nil
-			}
-			return nil, err
-		} else if w.String() != "," {
-			parser.UnreadRune()
-			return results, nil
-		}
 		obj, err := parser.ReadObject()
 		if err != nil {
-			return results, nil
+			if isUnexpectedWordError(err, ",") {
+				continue
+			} else if isUnexpectedWordError(err, ")") {
+				return results, nil
+			} else {
+				return nil, err
+			}
 		}
-		results = append(results, obj)
+		if obj == nil {
+			return nil, err
+		}
+		results = append(results, obj.Interface())
 	}
 }
 
@@ -169,7 +193,7 @@ func (parser *parser) ReadWord() (w Word, err error) {
 	if err != nil {
 		return
 	}
-	if tokens[char] {
+	if tokens[char] || parser.tokenExt[char] {
 		w = &word{token: true, text: string(char)}
 		return
 	}
