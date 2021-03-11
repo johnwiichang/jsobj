@@ -121,11 +121,13 @@ func (parser *parser) readObj() (interface{}, error) {
 		}
 		//an object, an array or just a text
 		if w.Token() {
+			var obj Object
 			parser.UnreadRune()
-			result[key], err = parser.ReadObject()
+			obj, err = parser.ReadObject()
 			if err != nil {
 				return nil, err
 			}
+			result[key] = obj.Interface()
 		} else {
 			//text
 			result[key] = w.Typed()
