@@ -1,22 +1,9 @@
 package jsobj
 
 import (
+	"errors"
 	"strings"
 )
-
-//Object JavaScript Object
-type Object interface {
-	Interface() interface{}
-}
-
-type object struct {
-	value interface{}
-}
-
-//Interface Get inner interface data from object instance
-func (obj *object) Interface() interface{} {
-	return obj.value
-}
 
 type parser struct {
 	*strings.Reader
@@ -93,7 +80,7 @@ func (parser *parser) ReadObjects() ([]interface{}, error) {
 func (parser *parser) readObj() (interface{}, error) {
 	// readed first '{'
 	//expect token '}', string
-	var result, hasComma = map[string]interface{}{}, true
+	var result, hasComma, key = map[string]interface{}{}, true, ""
 	for {
 		w, err := parser.ReadWord()
 		if err != nil {
@@ -106,7 +93,7 @@ func (parser *parser) readObj() (interface{}, error) {
 			//if there is no comma, the object must be finished
 			return nil, unexpectedWordError(w.String(), parser.location)
 		}
-		var key = w.String()
+		key = w.String()
 		w, err = parser.ReadWord()
 		if err != nil {
 			return nil, err
@@ -134,6 +121,11 @@ func (parser *parser) readObj() (interface{}, error) {
 		}
 		//must be a token in comma or bracket
 		w, err = parser.ReadWord()
+		if err == nil && w.String() == "(" {
+			if result[key], err = parser.callMethod(result[key].(string)); err == nil {
+				w, err = parser.ReadWord()
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -145,6 +137,20 @@ func (parser *parser) readObj() (interface{}, error) {
 			parser.UnreadRune()
 		}
 	}
+}
+
+func (parser *parser) callMethod(method string) (interface{}, error) {
+	parser.UnreadRune()
+	function, existed := functions[method]
+	if !existed {
+		function, existed = functions[strings.ToLower(method)]
+	}
+	if existed {
+		if args, err := parser.ReadObjects(); err == nil {
+			return function(args...)
+		}
+	}
+	return nil, errors.New("no method named '" + method + "'")
 }
 
 func (parser *parser) readArray() (interface{}, error) {
