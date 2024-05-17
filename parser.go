@@ -30,11 +30,9 @@ func (parser *parser) ReadObject() (obj Object, err error) {
 			case "{":
 				result, err = parser.readObj()
 				obj = &object{result}
-				break
 			case "[":
 				result, err = parser.readArray()
 				obj = &object{result}
-				break
 			default:
 				//other characters
 				err = unexpectedWordError(w.String(), parser.location)
@@ -163,6 +161,12 @@ func (parser *parser) readArray() (interface{}, error) {
 			return nil, err
 		}
 		if w.Token() {
+			if !hasComma && w.String() == "(" {
+				var idx = len(result) - 1
+				if result[idx], err = parser.callMethod(result[idx].(string)); err == nil {
+					continue
+				}
+			}
 			if !hasComma && w.String() != "]" {
 				return nil, unexpectedWordError(w.String(), parser.location)
 			}
