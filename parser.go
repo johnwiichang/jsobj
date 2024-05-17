@@ -163,23 +163,24 @@ func (parser *parser) readArray() (interface{}, error) {
 		if w.Token() {
 			if !hasComma && w.String() == "(" {
 				var idx = len(result) - 1
-				if result[idx], err = parser.callMethod(result[idx].(string)); err == nil {
-					continue
+				if result[idx], err = parser.callMethod(result[idx].(string)); err != nil {
+					return nil, err
 				}
+			} else {
+				if !hasComma && w.String() != "]" {
+					return nil, unexpectedWordError(w.String(), parser.location)
+				}
+				if w.String() == "]" {
+					return result, nil
+				}
+				parser.UnreadRune()
+				var obj Object
+				obj, err = parser.ReadObject()
+				if err != nil {
+					return nil, err
+				}
+				result = append(result, obj.Interface())
 			}
-			if !hasComma && w.String() != "]" {
-				return nil, unexpectedWordError(w.String(), parser.location)
-			}
-			if w.String() == "]" {
-				return result, nil
-			}
-			parser.UnreadRune()
-			var obj Object
-			obj, err = parser.ReadObject()
-			if err != nil {
-				return nil, err
-			}
-			result = append(result, obj.Interface())
 		} else {
 			result = append(result, w.Typed())
 		}
