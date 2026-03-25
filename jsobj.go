@@ -9,7 +9,7 @@ import (
 var tokens = map[rune]bool{}
 var blanks = map[rune]bool{}
 
-//Parser defines a method of reading JavaScript text based on Rune-based on-demand.
+// Parser defines a method of reading JavaScript text based on Rune-based on-demand.
 type Parser interface {
 	ReadObjects() ([]interface{}, error)
 	ReadObject() (Object, error)
@@ -21,7 +21,7 @@ type Parser interface {
 }
 
 func init() {
-	for _, char := range "[{()}],.:" {
+	for _, char := range "[{()}],.:;" {
 		tokens[char] = true
 	}
 	for _, char := range " \t\r\n\b\f" {
@@ -29,22 +29,38 @@ func init() {
 	}
 }
 
-//Parse Create a new parser to start reading the JavaScript string.
+// Parse Create a new parser to start reading the JavaScript string.
 func Parse(str string) Parser {
 	var parser = &parser{Reader: strings.NewReader(str), tokenExt: map[rune]bool{}}
 	return parser
 }
 
-//Unmarshal Use the system JSON serialization tool to complete the reverse sequence.
+// Unmarshal Use the system JSON serialization tool to complete the reverse sequence.
 func Unmarshal(src []byte, dst interface{}) error {
 	parser := Parse(string(src))
 	obj, err := parser.ReadObject()
 	if err != nil {
 		return err
 	}
+	if err := consumeStatementTail(parser); err != nil {
+		return err
+	}
 	if !parser.EOF() {
 		return errors.New("js: object has not ended")
 	}
-	bin, _ := json.Marshal(obj)
+	bin, _ := json.Marshal(obj.Interface())
 	return json.Unmarshal(bin, dst)
+}
+
+func consumeStatementTail(p Parser) error {
+	for {
+		char, _, err := p.(*parser).ReadRune()
+		if err != nil {
+			return nil
+		}
+		if blanks[char] || char == ';' {
+			continue
+		}
+		return p.UnreadRune()
+	}
 }
