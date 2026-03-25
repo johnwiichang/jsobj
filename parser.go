@@ -21,26 +21,32 @@ func (parser *parser) Location() int {
 
 func (parser *parser) ReadObject() (obj Object, err error) {
 	var w Word
-	w, err = parser.ReadWord()
-	if err == nil {
-		//expected { / [ or a pure text
-		if w.Token() {
-			var result interface{}
-			switch w.String() {
-			case "{":
-				result, err = parser.readObj()
-				obj = &object{result}
-			case "[":
-				result, err = parser.readArray()
-				obj = &object{result}
-			default:
-				//other characters
-				err = unexpectedWordError(w.String(), parser.location)
-			}
-		} else {
-			//text word can't have a follow-up word.
-			obj = &object{w.Typed()}
+	for {
+		w, err = parser.ReadWord()
+		if err != nil {
+			return nil, err
 		}
+		if !w.Token() || w.String() != ";" {
+			break
+		}
+	}
+	//expected { / [ or a pure text
+	if w.Token() {
+		var result interface{}
+		switch w.String() {
+		case "{":
+			result, err = parser.readObj()
+			obj = &object{result}
+		case "[":
+			result, err = parser.readArray()
+			obj = &object{result}
+		default:
+			//other characters
+			err = unexpectedWordError(w.String(), parser.location)
+		}
+	} else {
+		//text word can't have a follow-up word.
+		obj = &object{w.Typed()}
 	}
 	return
 }
